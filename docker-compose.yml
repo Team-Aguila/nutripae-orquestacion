@@ -1,0 +1,161 @@
+services:
+  nutripae-auth-db:
+    image: postgres:17-alpine
+    container_name: nutripae-auth-db
+    restart: always
+    env_file:
+      - nutripae-auth/.env
+    volumes:
+      - nutripae-auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nutripae-auth-api:
+    build:
+      context: nutripae-auth
+      dockerfile: Dockerfile
+    container_name: nutripae-auth-api
+    restart: always
+    env_file:
+      - nutripae-auth/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nutripae-auth:/app
+      - shared-logs:/var/log/containers
+    depends_on:
+      nutripae-auth-db:
+        condition: service_healthy
+    command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-auth.log"
+
+  nutripae-cobertura-db:
+    image: postgres:17-alpine
+    container_name: nutripae-cobertura-db
+    restart: always
+    env_file:
+        - nutripae-cobertura/.env
+    volumes:
+      - nutripae-cobertura-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nutripae-cobertura-api:
+    build:
+      context: nutripae-cobertura
+      dockerfile: Dockerfile
+    container_name: nutripae-cobertura-api
+    restart: always
+    env_file:
+      - nutripae-cobertura/.env
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./nutripae-cobertura:/app
+    depends_on:
+      nutripae-cobertura-db:
+        condition: service_healthy
+    command: sh -c "poetry run alembic upgrade head && poetry run poe db-seed && poetry run uvicorn nutripae_cobertura.main:app --host 0.0.0.0 --port 8000 --reload --app-dir /src 2>&1 | tee /var/log/containers/nutripae-cobertura.log"
+
+  nutripae-rh-db:
+    image: postgres:17-alpine
+    container_name: nutripae-rh-db
+    restart: always
+    env_file:
+      - nutripae-recursos-humanos/.env
+    volumes: 
+      - nutripae-rh-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nutripae-rh-api:
+    build:
+      context: nutripae-recursos-humanos
+      dockerfile: Dockerfile
+    container_name: nutripae-rh-api
+    restart: always
+    env_file:
+      - nutripae-recursos-humanos/.env
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./nutripae-recursos-humanos:/app
+      - shared-logs:/var/log/containers
+    depends_on:
+      nutripae-rh-db:
+        condition: service_healthy
+    command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-rh.log"
+  
+  grafana-alloy:
+    image: grafana/agent:latest
+    volumes:
+        - ./nutripae-observabilidad/alloy/alloy-config.yaml:/nutripae-observabilidad/alloy/agent.yaml
+        - shared-logs:/var/log/containers
+    command: -config.file=/nutripae-observabilidad/alloy/agent.yaml
+    depends_on:
+        - loki
+
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+        - '3100:3100'
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    ports:
+        - '9090:9090'
+    volumes:
+        - ./nutripae-observabilidad/prometheus/prometheus.yml:/workspace/prometheus.yml
+    command:
+        - --config.file=/workspace/prometheus.yml
+        - --enable-feature=exemplar-storage 
+    depends_on:
+        - loki
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    command:
+        [
+            '--target=all',
+            '--storage.trace.backend=local',
+            '--storage.trace.local.path=/var/tempo',
+            '--auth.enabled=false',
+        ]
+    ports:
+        - '4317:4317'
+        - '4318:4318'
+    depends_on:
+        - loki
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+        - '3000:3000'
+    volumes:
+        - ./nutripae-observabilidad/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+        - ./nutripae-observabilidad/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+        - ./nutripae-observabilidad/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+        - loki
+        - prometheus
+
+volumes:
+  nutripae-auth-db-data:
+    driver: local
+  nutripae-cobertura-db-data:
+    driver: local
+  nutripae-rh-db-data:
+    driver: local
+  shared-logs:
+    driver: local

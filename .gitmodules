@@ -1,0 +1,16 @@
+[submodule "nutripae-auth"]
+	path = nutripae-auth
+	url = git@github.com:Team-Aguila/nutripae-auth.git
+	branch = main
+[submodule "nutripae-recursos-humanos"]
+	path = nutripae-recursos-humanos
+	url = git@github.com:Team-Aguila/nutripae-recursos-humanos.git
+	branch = main
+[submodule "nutripae-cobertura"]
+	path = nutripae-cobertura
+	url = git@github.com:Team-Aguila/nutripae-cobertura.git
+	branch = main
+[submodule "nutripae-observabilidad"]
+	path = nutripae-observabilidad
+	url = git@github.com:Team-Aguila/nutripae-observabilidad.git
+	branch = main
