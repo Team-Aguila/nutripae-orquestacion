@@ -62,7 +62,7 @@ services:
     depends_on:
       nutripae-cobertura-db:
         condition: service_healthy
-    command: sh -c "poetry run alembic upgrade head && poetry run poe db-seed && poetry run uvicorn nutripae_cobertura.main:app --host 0.0.0.0 --port 8000 --reload --app-dir /src 2>&1 | tee /var/log/containers/nutripae-cobertura.log"
+    command: sh -c "poetry run alembic upgrade head && poetry run poe db-seed && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-cobertura.log"
 
   nutripae-rh-db:
     image: postgres:17-alpine
