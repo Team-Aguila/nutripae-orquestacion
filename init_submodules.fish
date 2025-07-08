@@ -4,7 +4,7 @@ echo "Iniciando la configuración de los submódulos (Fish Shell)..."
 
 # Inicializar y actualizar los submódulos
 echo "Clonando o actualizando los submódulos..."
-git submodule update --init --recursive
+git submodule update --init --recursive --remote --merge
 
 # Lista de submódulos donde NO queremos copiar .env.example
 set -l EXCLUDE_MODULE "nutripae-observabilidad"
