@@ -59,6 +59,7 @@ services:
       - "8001:8000"
     volumes:
       - ./nutripae-cobertura:/app
+      - shared-logs:/var/log/containers
     depends_on:
       nutripae-cobertura-db:
         condition: service_healthy
