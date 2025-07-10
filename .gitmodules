@@ -14,3 +14,11 @@
 	path = nutripae-observabilidad
 	url = git@github.com:Team-Aguila/nutripae-observabilidad.git
 	branch = main
+[submodule "nutripae-compras"]
+	path = nutripae-compras
+	url = git@github.com:Team-Aguila/nutripae-compras.git
+	branch = main
+[submodule "nutripae-front"]
+	path = nutripae-front
+	url = git@github.com:Team-Aguila/nutripae-front.git
+	branch = main
