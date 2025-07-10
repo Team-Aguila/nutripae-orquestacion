@@ -97,15 +97,42 @@ services:
       nutripae-rh-db:
         condition: service_healthy
     command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-rh.log"
-  
-  grafana-alloy:
-    image: grafana/agent:latest
+
+  nutripae-compras-db:
+    image: mongo:latest
+    container_name: nutripae-compras-db
+    restart: always
+    env_file:
+      - nutripae-compras/.env
     volumes:
-        - ./nutripae-observabilidad/alloy/alloy-config.yaml:/nutripae-observabilidad/alloy/agent.yaml
-        - shared-logs:/var/log/containers
-    command: -config.file=/nutripae-observabilidad/alloy/agent.yaml
+      - nutripae-compras-db-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongo --eval 'db.adminCommand('ping')'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nutripae-front:
+    container_name: nutripae-front
+    build:
+      context: nutripae-front
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./nutripae-front:/app
+      - shared-logs:/var/log/containers
+    environment:
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+      - PORT=5173
+    stdin_open: true
+    tty: true
     depends_on:
-        - loki
+      - nutripae-auth-api
+      - nutripae-cobertura-api
+      - nutripae-rh-api
 
   loki:
     image: grafana/loki:3.0.0
@@ -157,6 +184,8 @@ volumes:
   nutripae-cobertura-db-data:
     driver: local
   nutripae-rh-db-data:
+    driver: local
+  nutripae-compras-db-data:
     driver: local
   shared-logs:
     driver: local
