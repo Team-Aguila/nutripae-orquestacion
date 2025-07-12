@@ -30,7 +30,7 @@ services:
     depends_on:
       nutripae-auth-db:
         condition: service_healthy
-    command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-auth.log"
+    command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run python -m src.main 2>&1 | tee /var/log/containers/nutripae-auth.log"
 
   nutripae-cobertura-db:
     image: postgres:17-alpine
@@ -107,11 +107,29 @@ services:
     volumes:
       - nutripae-compras-db-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongo --eval 'db.adminCommand('ping')'"]
+      test: ["CMD-SHELL", "mongosh --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping: 1})' || mongo --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping: 1})'"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
       start_period: 10s
+  
+  nutripae-compras-api:
+    build:
+      context: nutripae-compras
+      dockerfile: Dockerfile
+    container_name: nutripae-compras-api
+    restart: always
+    env_file:
+      - nutripae-compras/.env
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./nutripae-compras:/app
+      - shared-logs:/var/log/containers
+    depends_on:
+      nutripae-compras-db:
+        condition: service_healthy
+    command: sh -c "poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-compras.log"
 
   nutripae-front:
     container_name: nutripae-front
@@ -177,6 +195,24 @@ services:
     depends_on:
         - loki
         - prometheus
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    ports:
+        - '12345:12345'
+    volumes:
+        - ./nutripae-observabilidad/alloy/alloy-config.alloy:/etc/alloy/config.alloy
+        - shared-logs:/var/log/containers:ro
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: 
+        - run
+        - /etc/alloy/config.alloy
+        - --server.http.listen-addr=0.0.0.0:12345
+        - --storage.path=/var/lib/alloy/data
+    depends_on:
+        - loki
 
 volumes:
   nutripae-auth-db-data:
