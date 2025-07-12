@@ -98,6 +98,39 @@ services:
         condition: service_healthy
     command: sh -c "poetry run alembic upgrade head && poetry run python -m src.db.seeder && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-rh.log"
 
+  nutripae-menus-db:
+    image: mongo:latest
+    container_name: nutripae-menus-db
+    restart: always
+    env_file:
+      - nutripae-menus/.env
+    volumes:
+      - nutripae-menus-db-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping: 1})' || mongo --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.runCommand({ping: 1})'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+  
+  nutripae-menus-api:
+    build:
+      context: nutripae-menus
+      dockerfile: Dockerfile
+    container_name: nutripae-menus-api
+    restart: always
+    env_file:
+      - nutripae-menus/.env
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./nutripae-menus:/app
+      - shared-logs:/var/log/containers
+    depends_on:
+      nutripae-menus-db:
+        condition: service_healthy
+    command: sh -c "poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src 2>&1 | tee /var/log/containers/nutripae-menus.log"
+
   nutripae-compras-db:
     image: mongo:latest
     container_name: nutripae-compras-db
@@ -122,7 +155,7 @@ services:
     env_file:
       - nutripae-compras/.env
     ports:
-      - "8003:8000"
+      - "8004:8000"
     volumes:
       - ./nutripae-compras:/app
       - shared-logs:/var/log/containers
@@ -147,6 +180,7 @@ services:
       - PORT=5173
     stdin_open: true
     tty: true
+    command: sh -c "bun install && bun run dev --host 0.0.0.0 --port 5173"
     depends_on:
       - nutripae-auth-api
       - nutripae-cobertura-api
@@ -222,6 +256,8 @@ volumes:
   nutripae-rh-db-data:
     driver: local
   nutripae-compras-db-data:
+    driver: local
+  nutripae-menus-db-data:
     driver: local
   shared-logs:
     driver: local

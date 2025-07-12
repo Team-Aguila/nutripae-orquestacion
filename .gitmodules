@@ -22,3 +22,7 @@
 	path = nutripae-front
 	url = git@github.com:Team-Aguila/nutripae-front.git
 	branch = main
+[submodule "nutripae-menus"]
+	path = nutripae-menus
+	url = git@github.com:Team-Aguila/nutripae-menus.git
+	branch = main
