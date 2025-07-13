@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 echo Iniciando la configuración de los submódulos (Batch)...
 
 REM Inicializar y actualizar los submódulos
@@ -10,35 +11,28 @@ set "EXCLUDE_MODULE=nutripae-observabilidad"
 
 echo Copiando .env.example a .env en los submódulos necesarios...
 
-REM Obtener las rutas de los submódulos desde .gitmodules
-for /f "tokens=2 delims= " %%A in ('git config --file .gitmodules --get-regexp submodule.^..*^.path') do (
-    set "SUBMODULE_PATH=%%A"
-    call :process_submodule
+REM Procesar directamente la salida de git config (método más simple)
+for /f "tokens=2 delims= " %%A in ('git config --file .gitmodules --get-regexp "submodule\..*\.path"') do (
+    
+    REM Extraer nombre del submódulo desde la ruta
+    for %%B in ("%%A") do set "SUBMODULE_NAME=%%~nxB"
+    
+    REM Verificar si no es el módulo a excluir
+    if not "!SUBMODULE_NAME!"=="!EXCLUDE_MODULE!" (
+        
+        if exist "%%A\.env.example" (
+            if not exist "%%A\.env" (
+                copy "%%A\.env.example" "%%A\.env" >nul
+                echo   - Copiado %%A\.env.example a %%A\.env
+            ) else (
+                echo   - %%A\.env ya existe, omitiendo copia.
+            )
+        ) else (
+            echo   - Advertencia: %%A\.env.example no encontrado.
+        )
+    ) else (
+        echo   - Omitiendo !SUBMODULE_NAME! (observabilidad) para la copia de .env.
+    )
 )
 
 echo Configuración de submódulos completada (Batch).
-goto :eof
-
-:process_submodule
-REM Extraer nombre del submódulo desde la ruta
-for %%B in ("%SUBMODULE_PATH%") do set "SUBMODULE_NAME=%%~nxB"
-
-if /i "%SUBMODULE_NAME%"=="%EXCLUDE_MODULE%" (
-    echo   - Omitiendo %SUBMODULE_NAME% (observabilidad) para la copia de .env.
-    goto :eof
-)
-
-set "ENV_EXAMPLE_PATH=%SUBMODULE_PATH%\.env.example"
-set "ENV_PATH=%SUBMODULE_PATH%\.env"
-
-if exist "%ENV_EXAMPLE_PATH%" (
-    if not exist "%ENV_PATH%" (
-        copy "%ENV_EXAMPLE_PATH%" "%ENV_PATH%" >nul
-        echo   - Copiado %ENV_EXAMPLE_PATH% a %ENV_PATH%
-    ) else (
-        echo   - %ENV_PATH% ya existe en %SUBMODULE_NAME%, omitiendo copia.
-    )
-) else (
-    echo   - Advertencia: %ENV_EXAMPLE_PATH% no encontrado en %SUBMODULE_NAME%.
-)
-goto :eof
