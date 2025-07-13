@@ -1,0 +1,7 @@
+submodule.nutripae-auth.path nutripae-auth
+submodule.nutripae-recursos-humanos.path nutripae-recursos-humanos
+submodule.nutripae-cobertura.path nutripae-cobertura
+submodule.nutripae-observabilidad.path nutripae-observabilidad
+submodule.nutripae-compras.path nutripae-compras
+submodule.nutripae-front.path nutripae-front
+submodule.nutripae-menus.path nutripae-menus
